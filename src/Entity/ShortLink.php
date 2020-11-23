@@ -14,6 +14,7 @@ class ShortLink
     const SHORT_LINK_PROTOCOL = 'http';
     const SHORT_LINK_DOMAIN = 'localhost';
     const SHORT_LINK_PORT = '8000';
+    const SHORT_LINK_PREFIX = 'sl';
 
     /**
      * @ORM\Id
@@ -36,7 +37,12 @@ class ShortLink
 
     public function getShortLink(): string
     {
-        return $this->getBaseShortURL() . $this->getId();
+        return $this->getBaseShortURL() . self::SHORT_LINK_PREFIX . str_pad($this->getId(), 7, 0,STR_PAD_LEFT);
+    }
+
+    public static function getIdFromShortLink(string $shortLinkId) : int
+    {
+        return (int) str_replace(self::SHORT_LINK_PREFIX, '', $shortLinkId);
     }
 
     public function getBaseShortURL()

@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\RedirectCounter;
 use App\Entity\ShortLink;
 use App\Form\Type\ShortLinkType;
 use App\Repository\ShortLinkRepository;
@@ -15,7 +16,6 @@ class CreateShortLinkController extends AbstractController
 {
     /**
      * @Route("/")
-     *
      * @param Request $request
      * @return Response
      */
@@ -40,18 +40,29 @@ class CreateShortLinkController extends AbstractController
     }
 
     /**
-     * @param ShortLinkRepository $shortLinkRepository
-     *
-     * @Route("/view/{id}", name="view")
-     *
+     * @Route("/success", name="success")
      * @return Response
      */
-    public function viewLink(ShortLinkRepository $shortLinkRepository, int $id): Response
+    public function shortenedLinkSuccess(): Response
     {
+        return new Response(
+            '<html><body><span>Success!</span></body></html>'
+        );
+    }
+
+    /**
+     * @param ShortLinkRepository $shortLinkRepository
+     * @param string $string
+     * @Route("/view/{string}", name="view")
+     * @return Response
+     */
+    public function viewLink(ShortLinkRepository $shortLinkRepository, string $string): Response
+    {
+        $id = ShortLink::getIdFromShortLink($string);
         $shortLink = $shortLinkRepository->find($id);
 
         if (empty($shortLink)) {
-            $message = 'The link with id:' . $id . ' was not found.';
+            $message = 'The link with id:' . $id . ' - ' . $string . ' was not found.';
             $status = 404;
         } else {
             $message = 'The link ' . $shortLink->getShortLink() . ' would redirect you to ' . $shortLink->getFullLink() . '.';
@@ -65,32 +76,29 @@ class CreateShortLinkController extends AbstractController
 
     /**
      * @param ShortLinkRepository $shortLinkRepository
-     *
-     * @Route("/{id}", name="redirect")
+     * @param string $string
+     * @Route("/{string}", name="redirect")
      * @return RedirectResponse
      */
-    public function redirectToFullLink(ShortLinkRepository $shortLinkRepository, int $id): RedirectResponse
+    public function redirectToFullLink(ShortLinkRepository $shortLinkRepository, string $string): RedirectResponse
     {
-        $shortLink = $shortLinkRepository->find($id);
+        $id = ShortLink::getIdFromShortLink($string);
+        $hydratedShortLink = $shortLinkRepository->find($id);
 
-        if (empty($shortLink)) {
+        if (empty($hydratedShortLink)) {
+            $shortLink = new ShortLink();
             $url = $shortLink->getBaseShortURL();
         } else {
-            $url = $shortLink->getFullLink();
+            $url = $hydratedShortLink->getFullLink();
+            $redirect = new RedirectCounter();
+            $redirect->setShortLink($hydratedShortLink);
+            $redirect->setRedirectedDate(new \DateTime());
+
+            $entityManager = $this->getDoctrine()->getManager();
+            $entityManager->persist($redirect);
+            $entityManager->flush();
         }
 
         return $this->redirect($url);
-    }
-
-    /**
-     * @Route("/success", name="success")
-     *
-     * @return Response
-     */
-    public function shortenedLinkSuccess(): Response
-    {
-        return new Response(
-            '<html><body><span>Success!</span></body></html>'
-        );
     }
 }
